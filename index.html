@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小红书内容生成器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入JSZip库用于打包下载 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-gray-50 text-gray-800">
+    <div class="container mx-auto p-4 md:p-8 max-w-6xl">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-orange-800">小红书内容生成器</h1>
+            <p class="text-gray-500 mt-2">快速将评论、视频素材转换为适合小红书发布的图片</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- 左侧输入面板 -->
+            <div class="space-y-8">
+                <!-- 输入评论区域 -->
+                <section class="bg-white p-6 rounded-xl shadow-lg">
+                    <h2 class="text-xl font-semibold mb-4 border-b pb-2">1. 输入评论内容</h2>
+                    <textarea id="markdownInput" class="w-full h-48 p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-sm" placeholder="请上传或粘贴JSON格式的评论数据"></textarea>
+                    <div class="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div>
+                            <label for="jsonFileInput" class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg transition-colors">
+                                上传 .json
+                            </label>
+                            <input type="file" id="jsonFileInput" accept=".json" class="hidden">
+                        </div>
+                        <button id="generateBtn" class="w-full sm:w-auto bg-orange-700 hover:bg-orange-800 text-white font-bold py-2 px-6 rounded-lg shadow-md hover:shadow-lg transition-all transform hover:scale-105">
+                            生成评论图
+                        </button>
+                    </div>
+                    <p id="fileName" class="text-sm text-gray-500 mt-2 text-center sm:text-left"></p>
+                </section>
+
+                <!-- 视频素材区域 -->
+                <section class="bg-white p-6 rounded-xl shadow-lg">
+                    <h2 class="text-xl font-semibold mb-4 border-b pb-2">2. 添加视频素材</h2>
+                    <div>
+                        <label for="videoFileInput" class="w-full text-center block cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg transition-colors">
+                            上传视频文件
+                        </label>
+                        <input type="file" id="videoFileInput" accept="video/*" class="hidden">
+                         <p id="videoFileName" class="text-sm text-gray-500 mt-2 text-center"></p>
+                    </div>
+
+                    <div id="videoContainer" class="hidden mt-4 space-y-4">
+                        <video id="videoPlayer" class="w-full" controls muted playsinline></video>
+                        <div class="flex items-center gap-4">
+                            <label for="screenshotCount" class="font-semibold whitespace-nowrap">截取张数:</label>
+                            <input type="number" id="screenshotCount" value="5" min="1" class="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <button id="uniformCaptureBtn" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all">均匀截取</button>
+                            <button id="randomCaptureBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all">随机截取</button>
+                        </div>
+                    </div>
+                </section>
+            </div>
+            
+            <!-- 右侧输出和预览区域 -->
+            <section class="bg-white p-6 rounded-xl shadow-lg lg:col-span-1">
+                <div class="flex justify-between items-center mb-4 border-b pb-2">
+                    <h2 id="outputTitle" class="text-xl font-semibold">3. 预览与拖拽</h2>
+                    <button id="downloadZipBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all text-sm">
+                        全部下载为 .zip
+                    </button>
+                </div>
+                <div id="output" class="bg-gray-50 rounded-lg min-h-[20rem] p-4 space-y-4">
+                    <div id="placeholderContainer" class="flex items-center justify-center h-full">
+                         <div id="loader" class="loader hidden"></div>
+                         <p id="placeholderText" class="text-gray-400">这里将显示所有生成的图片...</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- 使用说明 -->
+        <footer class="mt-8 bg-white p-6 rounded-xl shadow-lg">
+            <h3 class="text-lg font-semibold mb-2">使用说明</h3>
+            <ul class="list-disc list-inside text-gray-600 space-y-1 text-sm">
+                <li>**JSON格式**: 请上传或粘贴JSON格式的评论数据。</li>
+                <li>**时间显示**: JSON格式中的datetime字段会在评论底部显示发布时间。</li>
+                <li>**视频截图**: 截图会自动处理成与评论图一致的1080x1080分辨率。</li>
+                <li>**图片组管理**: 每次生成的内容会形成一个可删除的"图片组"。</li>
+                <li>**预览导航**: 放大图片后，可使用左右箭头或键盘方向键切换图片。</li>
+                <li>**打包下载**: 点击"全部下载为 .zip"按钮，可将所有图片一次性打包。</li>
+            </ul>
+        </footer>
+    </div>
+
+    <!-- Modal for Image Preview -->
+    <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-75 hidden items-center justify-center p-4 z-50 transition-opacity duration-300">
+        <div class="relative flex items-center justify-center">
+            <button id="prevBtn" class="modal-arrow modal-arrow-left">&lt;</button>
+            <img id="modalImage" src="" alt="放大后的评论图片" class="max-h-[90vh] max-w-[80vw] rounded-lg shadow-2xl">
+            <button id="nextBtn" class="modal-arrow modal-arrow-right">&gt;</button>
+            
+            <button id="closeModalBtn" class="absolute -top-3 -right-3 bg-white text-black rounded-full h-8 w-8 flex items-center justify-center text-2xl font-bold leading-none">&times;</button>
+        </div>
+    </div>
+
+    <!-- 引入各功能模块 -->
+    <script src="constants.js"></script>
+    <script src="utils.js"></script>
+    <script src="comment-parser.js"></script>
+    <script src="image-generator.js"></script>
+    <script src="video-processor.js"></script>
+    <script src="ui-controller.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
