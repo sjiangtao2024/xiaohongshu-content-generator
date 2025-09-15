@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>小红书内容生成器</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="tailwind.js"></script>
     <!-- 引入JSZip库用于打包下载 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.0/dist/ffmpeg.min.js"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body class="bg-gray-50 text-gray-800">
@@ -40,12 +41,15 @@
                 <!-- 视频素材区域 -->
                 <section class="bg-white p-6 rounded-xl shadow-lg">
                     <h2 class="text-xl font-semibold mb-4 border-b pb-2">2. 添加视频素材</h2>
-                    <div>
+                    <div class="text-center">
                         <label for="videoFileInput" class="w-full text-center block cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg transition-colors">
                             上传视频文件
                         </label>
                         <input type="file" id="videoFileInput" accept="video/*" class="hidden">
-                         <p id="videoFileName" class="text-sm text-gray-500 mt-2 text-center"></p>
+                         <div id="videoFileInfo" class="hidden items-center justify-center mt-2">
+                            <span id="videoFileName" class="text-sm text-gray-500"></span>
+                            <button id="removeVideoBtn" class="ml-2 text-red-500 hover:text-red-700 text-sm font-semibold" title="移除视频">[移除]</button>
+                        </div>
                     </div>
 
                     <div id="videoContainer" class="hidden mt-4 space-y-4">
@@ -79,6 +83,44 @@
             </section>
         </div>
 
+        <!-- 第四步：生成视频 -->
+        <section id="videoGenerationSection" class="bg-white p-6 rounded-xl shadow-lg mt-8 hidden">
+            <h2 class="text-xl font-semibold mb-4 border-b pb-2">4. 生成视频</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- 参数配置 -->
+                <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="videoScreenshotDuration" class="block text-sm font-medium text-gray-700">视频截图播放时间 (秒)</label>
+                        <input type="number" id="videoScreenshotDuration" value="1.5" step="0.1" min="0.1" class="mt-1 w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500">
+                    </div>
+                    <div>
+                        <label for="commentImageDuration" class="block text-sm font-medium text-gray-700">评论图片基础时间 (秒)</label>
+                        <input type="number" id="commentImageDuration" value="3" step="0.1" min="0.1" class="mt-1 w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label for="videoResolution" class="block text-sm font-medium text-gray-700">视频分辨率</label>
+                        <select id="videoResolution" class="mt-1 w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500">
+                            <option value="1080x1080">1080x1080 (方形)</option>
+                            <option value="1080x1920">1080x1920 (竖屏)</option>
+                            <option value="1920x1080">1920x1080 (横屏)</option>
+                        </select>
+                    </div>
+                </div>
+                <!-- 生成操作 -->
+                <div class="flex flex-col items-center justify-center bg-gray-50 p-4 rounded-lg">
+                    <button id="generateVideoBtn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition-all transform hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                        一键生成视频
+                    </button>
+                    <div id="videoProgressContainer" class="w-full mt-4 text-center hidden">
+                        <p id="videoProgressText" class="text-sm text-gray-600">准备中...</p>
+                        <div class="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                            <div id="videoProgressBar" class="bg-green-500 h-2.5 rounded-full" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- 使用说明 -->
         <footer class="mt-8 bg-white p-6 rounded-xl shadow-lg">
             <h3 class="text-lg font-semibold mb-2">使用说明</h3>
@@ -110,6 +152,8 @@
     <script src="comment-parser.js"></script>
     <script src="image-generator.js"></script>
     <script src="video-processor.js"></script>
+    <script src="ffmpeg-loader.js"></script>
+    <script src="video-generator.js"></script>
     <script src="ui-controller.js"></script>
     <script src="main.js"></script>
 </body>

@@ -39,6 +39,18 @@ class UIController {
         this.screenshotCountInput = document.getElementById('screenshotCount');
         this.uniformCaptureBtn = document.getElementById('uniformCaptureBtn');
         this.randomCaptureBtn = document.getElementById('randomCaptureBtn');
+        this.videoFileInfo = document.getElementById('videoFileInfo');
+        this.removeVideoBtn = document.getElementById('removeVideoBtn');
+
+        // 视频生成UI元素
+        this.videoGenerationSection = document.getElementById('videoGenerationSection');
+        this.videoScreenshotDuration = document.getElementById('videoScreenshotDuration');
+        this.commentImageDuration = document.getElementById('commentImageDuration');
+        this.generateVideoBtn = document.getElementById('generateVideoBtn');
+        this.videoProgressContainer = document.getElementById('videoProgressContainer');
+        this.videoProgressText = document.getElementById('videoProgressText');
+        this.videoProgressBar = document.getElementById('videoProgressBar');
+        this.videoResolution = document.getElementById('videoResolution');
     }
 
     // 初始化事件监听器
@@ -55,6 +67,8 @@ class UIController {
         });
         this.prevBtn.addEventListener('click', () => this.showPrevImage());
         this.nextBtn.addEventListener('click', () => this.showNextImage());
+        this.generateVideoBtn.addEventListener('click', () => this.handleVideoGeneration());
+        this.removeVideoBtn.addEventListener('click', () => this.handleRemoveVideo());
     }
 
     // 处理JSON文件上传
@@ -78,7 +92,24 @@ class UIController {
             this.videoPlayer.src = videoURL;
             this.videoContainer.classList.remove('hidden');
             this.videoFileName.textContent = `已加载: ${file.name}`;
+            this.videoFileInfo.style.display = 'flex'; // Show file info and remove button
         }
+    }
+
+    // 处理移除视频
+    handleRemoveVideo() {
+        // 释放由 createObjectURL 创建的URL，防止内存泄漏
+        if (this.videoPlayer.src) {
+            URL.revokeObjectURL(this.videoPlayer.src);
+        }
+        
+        this.videoPlayer.src = '';
+        this.videoContainer.classList.add('hidden');
+        this.videoFileName.textContent = '';
+        this.videoFileInfo.style.display = 'none';
+        
+        // 重置文件输入框，以便可以再次上传相同的文件
+        this.videoFileInput.value = '';
     }
 
     // 处理键盘事件
@@ -174,6 +205,7 @@ class UIController {
         });
 
         this.updateOutputTitle();
+        this.updateVideoGenerationSectionVisibility();
     }
 
     // 打开模态框
@@ -208,6 +240,77 @@ class UIController {
         const flatImages = this.imageGroups.flatMap(group => group.images.map(img => img.dataUrl));
         this.currentPreviewIndex = (this.currentPreviewIndex + 1) % flatImages.length;
         this.modalImage.src = flatImages[this.currentPreviewIndex];
+    }
+
+    // 更新视频生成区域的可见性
+    updateVideoGenerationSectionVisibility() {
+        const hasImages = this.imageGroups.length > 0;
+        if (hasImages) {
+            this.videoGenerationSection.classList.remove('hidden');
+        } else {
+            this.videoGenerationSection.classList.add('hidden');
+        }
+    }
+
+    // 处理视频生成
+    async handleVideoGeneration() {
+        // 1. 按类型（截图、评论）分离并排序图片
+        const screenshotGroups = this.imageGroups.filter(group => group.title.includes('视频截图'));
+        const commentGroups = this.imageGroups.filter(group => group.title.includes('评论图'));
+
+        const screenshotImages = screenshotGroups.flatMap(group => group.images);
+        const commentImages = commentGroups.flatMap(group => group.images);
+
+        const allImages = [...screenshotImages, ...commentImages];
+
+        if (allImages.length === 0) {
+            alert('没有图片可用于生成视频。');
+            return;
+        }
+
+        this.generateVideoBtn.disabled = true;
+        this.videoProgressContainer.classList.remove('hidden');
+        this.videoProgressBar.style.width = '0%';
+        this.videoProgressBar.style.backgroundColor = '#22c55e'; // Reset to green
+
+        const config = {
+            screenshotDuration: parseFloat(this.videoScreenshotDuration.value),
+            commentDuration: parseFloat(this.commentImageDuration.value),
+            resolution: this.videoResolution.value,
+        };
+
+        const progressCallback = ({ status, text, percentage }) => {
+            this.videoProgressText.textContent = text || '处理中...';
+            if (percentage !== undefined) {
+                this.videoProgressBar.style.width = `${percentage}%`;
+            }
+        };
+
+        try {
+            const videoBlob = await VideoGenerator.generate(allImages, config, progressCallback);
+            
+            progressCallback({ status: 'done', text: '视频生成完毕！正在准备下载...' });
+
+            // 创建下载链接
+            const url = URL.createObjectURL(videoBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `小红书视频-${Date.now()}.mp4`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            this.videoProgressText.textContent = '下载已开始！';
+
+        } catch (error) {
+            console.error("视频生成失败:", error);
+            this.videoProgressText.textContent = '视频生成失败！';
+            this.videoProgressBar.style.backgroundColor = '#ef4444'; // Red color
+            alert(`视频生成失败: ${error.message}`);
+        } finally {
+            this.generateVideoBtn.disabled = false;
+        }
     }
 
     // 检测输入格式类型

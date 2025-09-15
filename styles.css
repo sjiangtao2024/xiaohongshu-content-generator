@@ -102,3 +102,8 @@ video {
 .delete-group-btn:hover {
     background-color: #fecaca;
 }
+
+/* 视频生成进度条 */
+#videoProgressBar {
+    transition: width 0.3s ease-in-out;
+}
